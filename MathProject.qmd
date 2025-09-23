@@ -1,0 +1,234 @@
+---
+title: "Do Shots on Goal Predict Goals Scored in NHL Games?"
+subtitle: "A Simple Linear Regression Analysis of the 2021–22 NHL Season"
+author: "Hemangi Vij"
+thanks: "Project repository available at: [https://github.com/hemangivij/nhl-regression-project](https://github.com/hemangivij/nhl-regression-project)."
+date: today
+date-format: long
+abstract: "This paper investigates whether the number of shots on goal predicts the number of goals scored in National Hockey League (NHL) games during the 2021–22 season. Using a simple linear regression model with shots as the predictor and goals as the response, I find that each additional shot on goal is associated with approximately 0.056 more goals. While the relationship is statistically significant (p < 0.001), the model explains only about 5% of the variation in goals scored (R² = 0.049), indicating that shot volume is only a modest predictor of scoring outcomes. These findings highlight the role of other factors such as shot quality, special teams, and goaltender performance in determining offensive success."
+
+format: pdf
+bibliography: references.bib
+number-sections: true
+---
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+# load libraries
+library(tidyverse)
+library(stringr)
+library(ggpubr)
+library(patchwork)
+```
+
+# Introduction
+
+In ice hockey, a common assumption is that more shots on goal lead to more goals scored. Teams that shoot more are generally seen as creating more offensive chances, forcing the opposing goalie to make saves and increasing the likelihood of scoring.
+
+Yet, goal scoring depends on more than just volume: shot quality, goaltending, and game situations also matter. Shot totals are simple to track, but their true predictive power for goals is less clear.
+
+In this project, we use play-by-play data from the 2021–22 NHL season to test whether shots on goal significantly predict goals scored at the team–game level. By aggregating shot-level data and applying simple linear regression, we quantify the average impact of additional shots and evaluate the strength of this relationship.
+
+The rest of this paper is structured as follows: Section 2 introduces the dataset, Section 3 describes the regression model, Section 4 presents results, and Section 5 discusses implications and limitations.
+
+
+
+# Data {#sec-data}
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+
+# READ CSV
+nhl_raw <- readr::read_csv("~/Desktop/nhl-shots-2021.csv", show_col_types = FALSE)
+
+# TEAM–GAME aggregation
+nhl <- nhl_raw |>
+  dplyr::mutate(shot_outcome = stringr::str_trim(shot_outcome)) |>
+  dplyr::group_by(game_id, event_team, home_name, away_name) |>
+  dplyr::summarise(
+    shots = sum(shot_outcome %in% c("SHOT","GOAL"), na.rm = TRUE),
+    goals = sum(shot_outcome == "GOAL", na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# inline stats
+N_obs <- nrow(nhl)
+r_xy  <- cor(nhl$shots, nhl$goals)
+
+```
+There are `r N_obs` team–game observations. The sample correlation between shots and goals is `r round(r_xy, 3)`.
+
+
+```{r fig}
+#| include: false
+#| warning: false
+#| message: false
+
+players <- nhl_raw |>
+  dplyr::mutate(shot_outcome = stringr::str_trim(shot_outcome)) |>
+  # shooter is usually event_player_1_name for SHOT/GOAL events
+  dplyr::filter(shot_outcome %in% c("SHOT","GOAL")) |>
+  dplyr::group_by(player = event_player_1_name) |>
+  dplyr::summarise(
+    total_shots = dplyr::n(),                              # SHOT + GOAL
+    shots_scored = sum(shot_outcome == "GOAL", na.rm = TRUE), # goals
+    .groups = "drop"
+  ) |>
+  dplyr::filter(!is.na(player) & player != "")
+
+```
+
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+
+lm_players <- lm(shots_scored ~ total_shots, data = players)
+b0_p <- coef(lm_players)[1]            # intercept
+b1_p <- coef(lm_players)[2]            # slope
+r2_p <- summary(lm_players)$r.squared  # R-squared
+```
+
+The dataset comes from the NHL play-by-play records for the 2021–22 season [@nhl_data].  
+Each row in the raw data corresponds to a single event (such as a shot, goal, or blocked shot) during a game.  
+For this analysis, I aggregated events to create a team–game dataset where each row represents one team’s performance in one game.
+
+
+The two variables of interest are:
+
+```{r fig-shots-vs-goals}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Scatter of shots on goal (x) vs goals (y) at the team–game level with fitted regression line."
+ggplot(nhl, aes(x = shots, y = goals)) +
+  geom_point(alpha = 0.45) +
+  geom_smooth(method = "lm", se = FALSE) +
+  stat_regline_equation(label.x = 15, label.y = 6) +
+  theme_pubr() +
+  xlab("Shots on Goal") + ylab("Goals Scored") +
+  ggtitle("Shots vs Goals (Team–Game, NHL 2021–22)")
+```
+
+
+
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Shots Scored vs Total Shots per Player (NHL 2021–22) with fitted regression line."
+ggplot(players, aes(x = total_shots, y = shots_scored)) +
+  geom_point(alpha = 0.7, color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  stat_regline_equation(label.x = 100, label.y = 50) +
+  theme_pubr() +
+  xlab("Total Shots") + ylab("Shots Scored") +
+  ggtitle("Shots Scored vs Total Shots per Player")
+```
+
+
+
+- **Shots on goal**: all events recorded as a shot on goal (including those that resulted in goals).  
+- **Goals**: all events recorded as goals.  
+
+In total, the dataset includes `r N_obs` team–game observations.  
+@fig-shots-vs-goals shows a positive linear association between shots and goals.
+
+
+
+# Methods {#sec-methods}
+
+To evaluate whether shots on goal predict goals scored, I fit a simple linear regression model:
+
+$$
+Y_i = \beta_0 + \beta_1 X_i + \varepsilon_i,
+$$
+
+where
+
+- \(Y_i\) is the number of goals scored by team \(i\) in a game,  
+- \(X_i\) is the number of shots on goal by team \(i\),  
+- \(\beta_0\) is the intercept (the expected goals if a team takes zero shots),  
+- \(\beta_1\) is the slope (the expected increase in goals for each additional shot), and  
+- \(\varepsilon_i\) is a random error term.
+
+I estimated the model using the **R** programming language [@R_language]. The `lm()` function was used to fit the regression, and the results were summarized with `summary()`.  
+
+The standard assumptions of linear regression were considered: linearity, independence of observations, constant variance of residuals (homoscedasticity), and approximate normality of errors. Residual plots were examined to assess these assumptions.  
+
+A limitation of this approach is that shots on goal do not account for shot quality, power-play situations, or goaltender performance, which may limit the explanatory power of the model.
+
+I used the tidyverse [@tidyverse2019], ggplot2 [@ggplot2], ggpubr [@ggpubr], patchwork [@patchwork], and stringr [@stringr] in R [@R_language].
+
+
+# Results {#sec-results}
+
+```{r nhl-lm}
+#| include: false
+#| warning: false
+#| message: false
+lm_fit <- lm(goals ~ shots, data = nhl)
+
+```
+
+
+The estimated intercept is $\hat{\beta}_0 =$ `r round(coef(lm_fit)[1], 3)`.  
+The estimated slope is $\hat{\beta}_1 =$ `r round(coef(lm_fit)[2], 3)`, meaning that, on average, each additional shot on goal is associated with this many more goals.  
+The model explains $R^2 =$ `r round(summary(lm_fit)$r.squared, 3)` of the variation in goals scored.
+
+
+
+
+```{r fig-nhl-residuals}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-cap: "Residuals vs fitted values for a simple linear regression with goals as the response and shots on goal as the predictor."
+plot_dat <- data.frame(
+  resid = resid(lm_fit),
+  fitted = fitted(lm_fit)
+)
+ggplot(plot_dat, aes(x = fitted, y = resid)) +
+  geom_point(alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_pubr() +
+  ylab("Residual (observed - fitted)") +
+  xlab("Fitted values (Goals)") +
+  ggtitle("Residuals vs Fitted Values for NHL Team–Game Model")
+```
+
+I use a two-sided t-test to compare the null hypothesis $H_0\!:\beta_1 = 0$ against the alternative $H_A\!:\beta_1 \neq 0$.  
+The slope estimate is positive and highly significant (p < 0.001), so we reject $H_0$ and conclude that shots on goal are positively associated with goals scored.  
+
+For this test to be valid, the usual linear regression assumptions should hold: linearity of the relationship, independence of errors, homoscedasticity (constant variance of residuals), and approximate normality of residuals.  
+The residuals plot (@fig-nhl-residuals) shows that residuals are roughly centered around zero, though there is some heteroskedasticity (variance increases slightly with fitted values). This suggests the model captures the main trend but shot volume alone does not explain all variability in scoring.
+
+
+# Discussion {#sec-discussion}
+
+This analysis shows that shots on goal are positively associated with goals scored in NHL games. The slope estimate is statistically significant, indicating that taking more shots on goal increases the expected number of goals. However, the $R^2$ value is relatively low, suggesting that shot volume explains only a modest portion of the variation in goal scoring.
+
+**Strengths.**  
+- Uses official NHL play-by-play data from an entire season.  
+- Simple linear regression makes the relationship between shots and goals easy to interpret.  
+
+**Limitations.**  
+- Shot quality (location, type of shot) is not included.  
+- Does not account for special teams (power play, penalty kill) or goalie performance.  
+- Model assumptions show mild heteroskedasticity.  
+
+**Future directions.**  
+- Add predictors such as expected goals (xG), power-play opportunities, and goalie save percentage.  
+- Consider count regression models (Poisson or negative binomial) that better handle goal distributions.  
+- Explore player-level and team-level differences over the season.  
+
+Overall, while shots on goal do predict goals scored, they are only part of the story in explaining offensive success in the NHL.
+
+
+
+# References
