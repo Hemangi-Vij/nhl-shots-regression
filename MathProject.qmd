@@ -2,11 +2,10 @@
 title: "Do Shots on Goal Predict Goals Scored in NHL Games?"
 subtitle: "A Simple Linear Regression Analysis of the 2021–22 NHL Season"
 author: "Hemangi Vij"
-thanks: "Project repository available at: [https://github.com/hemangivij/nhl-regression-project](https://github.com/hemangivij/nhl-regression-project)."
+thanks: "Project repository available at: [https://github.com/hemangivij/nhl-regression-project](https://github.com/Hemangi-Vij/nhl-shots-regression)."
 date: today
 date-format: long
-abstract: "This paper investigates whether the number of shots on goal predicts the number of goals scored in National Hockey League (NHL) games during the 2021–22 season. Using a simple linear regression model with shots as the predictor and goals as the response, I find that each additional shot on goal is associated with approximately 0.056 more goals. While the relationship is statistically significant (p < 0.001), the model explains only about 5% of the variation in goals scored (R² = 0.049), indicating that shot volume is only a modest predictor of scoring outcomes. These findings highlight the role of other factors such as shot quality, special teams, and goaltender performance in determining offensive success."
-
+abstract: "This paper investigates whether the number of shots on goal predicts the number of goals scored in National Hockey League (NHL) games during the 2021–22 season. Since shots on goal represent direct scoring opportunities, understanding their relationship to goals scored is fundamental to hockey analytics. Using a simple linear regression model with shots as the predictor and goals as the response, we find that each additional shot on goal is associated with approximately 0.056 more goals. While the relationship is statistically significant (p < 0.001), the model explains only about 5% of the variation in goals scored (R² = 0.049), indicating that shot volume is a modest predictor of scoring outcomes. These findings highlight the role of other factors such as shot quality, special teams, and goaltender performance in determining offensive success."
 format: pdf
 bibliography: references.bib
 number-sections: true
@@ -25,17 +24,16 @@ library(patchwork)
 
 # Introduction
 
-In ice hockey, a common assumption is that more shots on goal lead to more goals scored. Teams that shoot more are generally seen as creating more offensive chances, forcing the opposing goalie to make saves and increasing the likelihood of scoring.
+In ice hockey, a common assumption is that more shots on goal lead to more goals scored. A shot on goal is any attempt that would enter the net if not stopped by the goaltender either resulting in a save or a goal. Because shots on goal directly represent offensive opportunities, teams that record more shots are generally perceived as generating more scoring chances and maintaining greater offensive pressure.
 
-Yet, goal scoring depends on more than just volume: shot quality, goaltending, and game situations also matter. Shot totals are simple to track, but their true predictive power for goals is less clear.
+However, not all shots are equally likely to result in goals. Factors such as shot quality, player positioning, defensive coverage, goal tending ability, and game situations like power plays or even strength, all influence scoring outcomes. Thus, while shot totals are simple to track and commonly cited in hockey analytics, it remains unclear how strongly they actually predict goals scored.
 
-In this project, we use play-by-play data from the 2021–22 NHL season to test whether shots on goal significantly predict goals scored at the team–game level. By aggregating shot-level data and applying simple linear regression, we quantify the average impact of additional shots and evaluate the strength of this relationship.
+We used play-by-play data from the @nhl2022data to test whether the number of shots on goal significantly predicts the number of goals scored at the team-game level. By aggregating shot level data and applying a simple linear regression model, we quantify the average effect of additional shots on scoring and evaluate how much of goal variation can be explained by shot volume alone.
 
-The rest of this paper is structured as follows: Section 2 introduces the dataset, Section 3 describes the regression model, Section 4 presents results, and Section 5 discusses implications and limitations.
-
-
+The remainder of this paper is structured as follows: Section 2 describes the dataset, Section 3 presents the regression model, Section 4 reports the results, and Section 5 discusses implications and limitations.
 
 # Data {#sec-data}
+
 ```{r}
 #| include: false
 #| warning: false
@@ -44,7 +42,7 @@ The rest of this paper is structured as follows: Section 2 introduces the datase
 # READ CSV
 nhl_raw <- readr::read_csv("~/Desktop/nhl-shots-2021.csv", show_col_types = FALSE)
 
-# TEAM–GAME aggregation
+# team-game aggregation
 nhl <- nhl_raw |>
   dplyr::mutate(shot_outcome = stringr::str_trim(shot_outcome)) |>
   dplyr::group_by(game_id, event_team, home_name, away_name) |>
@@ -59,8 +57,8 @@ N_obs <- nrow(nhl)
 r_xy  <- cor(nhl$shots, nhl$goals)
 
 ```
-There are `r N_obs` team–game observations. The sample correlation between shots and goals is `r round(r_xy, 3)`.
 
+There are `r N_obs` team-game observations. Each observation represents a team-game, meaning one team’s performance in a single game. The sample correlation between shots and goals is `r round(r_xy, 3)`.
 
 ```{r fig}
 #| include: false
@@ -81,7 +79,6 @@ players <- nhl_raw |>
 
 ```
 
-
 ```{r}
 #| include: false
 #| warning: false
@@ -93,29 +90,23 @@ b1_p <- coef(lm_players)[2]            # slope
 r2_p <- summary(lm_players)$r.squared  # R-squared
 ```
 
-The dataset comes from the NHL play-by-play records for the 2021–22 season [@nhl_data].  
-Each row in the raw data corresponds to a single event (such as a shot, goal, or blocked shot) during a game.  
-For this analysis, I aggregated events to create a team–game dataset where each row represents one team’s performance in one game.
+This analysis uses play-by-play data from the @nhl2022data. This season was chosen because it was the most recent completed, non-lockout season available at the time of analysis, ensuring full participation of all 32 teams under consistent rules and formats. Each regular season and playoff game was included, providing comprehensive coverage of league-wide performance.
 
-
-The two variables of interest are:
+Each observation in the dataset represents a team-game performance. In total, there are 2,802 observations (one for each team in each regular-season game). For every game, events such as shots, goals, and blocked shots were recorded at the play level, then aggregated to create team-level summaries.
 
 ```{r fig-shots-vs-goals}
 #| echo: false
 #| warning: false
 #| message: false
-#| fig-cap: "Scatter of shots on goal (x) vs goals (y) at the team–game level with fitted regression line."
+#| fig-cap: "Scatter of shots on goal (x) vs goals (y) at the team-game level with fitted regression line."
 ggplot(nhl, aes(x = shots, y = goals)) +
   geom_point(alpha = 0.45) +
   geom_smooth(method = "lm", se = FALSE) +
-  stat_regline_equation(label.x = 15, label.y = 6) +
+  stat_regline_equation(label.x = 60, label.y = 8) +
   theme_pubr() +
   xlab("Shots on Goal") + ylab("Goals Scored") +
-  ggtitle("Shots vs Goals (Team–Game, NHL 2021–22)")
+  ggtitle("Shots vs Goals (team-game, NHL 2021–22)")
 ```
-
-
-
 
 ```{r}
 #| echo: false
@@ -131,40 +122,43 @@ ggplot(players, aes(x = total_shots, y = shots_scored)) +
   ggtitle("Shots Scored vs Total Shots per Player")
 ```
 
+The raw dataset records every on ice event during games such as shots, goals, penalties, and saves along with timestamps and player/team identifiers. For this study, the data was aggregated to the team-game level: each row represents one team’s performance in one game. The two primary variables used were:
 
+-   **Shots on goal**: all attempts that would have entered the net if not stopped by the goaltender (including shots that resulted in goals).
 
-- **Shots on goal**: all events recorded as a shot on goal (including those that resulted in goals).  
-- **Goals**: all events recorded as goals.  
+-   **Goals**: all successful scoring events recorded by the NHL’s official scorers.
 
-In total, the dataset includes `r N_obs` team–game observations.  
-@fig-shots-vs-goals shows a positive linear association between shots and goals.
+In total, the dataset contains 2,802 team-game observations, corresponding to 1,401 games across the 2021–22 season. This aggregation allows us to study how a team’s shooting volume in a given game relates to its goal production in that same game.
 
+Basic descriptive analysis shows a modest positive association between shots on goal and goals scored (sample correlation = 0.221). Figure 1 visualizes this relationship, showing that teams with more shots tend to score slightly more goals, although the relationship is far from perfect. Figure 2, which displays player-level shooting totals, was originally intended to illustrate individual variability but does not directly inform the team-game analysis and is therefore omitted in the revised version.
 
+Limitations: Despite the richness of NHL play-by-play data, several limitations exist. Shot counts do not capture shot quality (e.g., distance, angle, or traffic in front of the net), nor do they account for special-team situations such as power plays or penalty kills. Additionally, while official NHL statistics are carefully recorded, minor inconsistencies or recording errors may occur across venues. These limitations suggest that shot volume alone cannot fully explain scoring outcomes, motivating further models that incorporate situational or player-level information.
 
 # Methods {#sec-methods}
 
-To evaluate whether shots on goal predict goals scored, I fit a simple linear regression model:
+To evaluate whether the number of shots on goal predicts the number of goals scored, we fit a simple linear regression model of the form:
 
 $$
 Y_i = \beta_0 + \beta_1 X_i + \varepsilon_i,
 $$
 
-where
+where ($Y_i$) represents the number of goals scored by team ( i ) in a game, and ($X_i$) represents the number of shots on goal taken by that team. The parameter ($\beta_0$) is the intercept, representing the expected number of goals when a team takes zero shots, while ($\beta_1$) is the slope, representing the expected change in goals for each additional shot on goal. The term ($\varepsilon_i$) is a random error term that captures unexplained variation in scoring not accounted for by shot volume.
 
-- \(Y_i\) is the number of goals scored by team \(i\) in a game,  
-- \(X_i\) is the number of shots on goal by team \(i\),  
-- \(\beta_0\) is the intercept (the expected goals if a team takes zero shots),  
-- \(\beta_1\) is the slope (the expected increase in goals for each additional shot), and  
-- \(\varepsilon_i\) is a random error term.
+This model was chosen because it directly reflects the research question: whether more shots on goal lead to more goals scored. The predictor ($X_i$) (shots on goal) is continuous and directly related to offensive output, making it suitable for linear regression. Since we are examining team-game data, each observation corresponds to a single team’s performance in a single game.
 
-I estimated the model using the **R** programming language [@R_language]. The `lm()` function was used to fit the regression, and the results were summarized with `summary()`.  
+Model parameters were estimated using ordinary least squares (OLS) in the **R** programming language @R_language via the `lm()` function. Data processing and visualization were completed using the **tidyverse** @tidyverse2019, **ggplot2** @ggplot2, **ggpubr** @ggpubr, and **patchwork** @patchwork packages.
 
-The standard assumptions of linear regression were considered: linearity, independence of observations, constant variance of residuals (homoscedasticity), and approximate normality of errors. Residual plots were examined to assess these assumptions.  
+### Assumptions of the Linear Regression Model
 
-A limitation of this approach is that shots on goal do not account for shot quality, power-play situations, or goaltender performance, which may limit the explanatory power of the model.
+Several assumptions were evaluated to ensure the validity of the regression model. It is assumed that the relationship between shots on goal and goals scored is linear, meaning that each additional shot contributes a constant expected change in goals. It is also assumed that the errors ( $\varepsilon_i$ ) are independent across games, so that one team’s scoring outcome does not influence another. In addition, homoscedasticity, or constant variance of the errors across all levels of shots on goal, expressed mathematically as ( $\text{Var}(\varepsilon_i) = \sigma^2$ ) is also assumed. This condition ensures that the variability in goal scoring remains consistent regardless of how many shots a team takes. Finally, it is assumed that the errors follow an approximately normal distribution with mean zero, ( $\varepsilon_i \sim N(0, \sigma^2$) ), which allows for valid ( t )-tests and confidence intervals. These assumptions were checked using residual plots and found that the residuals were roughly centered around zero, with a slight increase in variance at higher fitted values. This mild heteroskedasticity indicates that while the model captures the main trend between shots and goals, the precision of the standard errors may be slightly affected.
 
-I used the tidyverse [@tidyverse2019], ggplot2 [@ggplot2], ggpubr [@ggpubr], patchwork [@patchwork], and stringr [@stringr] in R [@R_language].
+### Model Validation
 
+Model validity was assessed using diagnostic plots. Residuals were examined to verify that they were centered around zero (supporting linearity) and roughly constant in spread (supporting homoscedasticity). The residual plot (Figure 3) revealed mild heteroskedasticity, where residual variance increases slightly with fitted values. While this does not bias coefficient estimates, it may affect the accuracy of standard errors and hypothesis tests.
+
+### Limitations and Extensions
+
+A key limitation of this model is that it assumes shots on goal are the only predictor of scoring, which simplifies the complex nature of hockey outcomes. Important factors such as shot quality, player skill, game context, and goaltender performance are not included in the analysis. Future models could incorporate additional explanatory variables such as expected goals (xG), power-play opportunities, or goalie save percentage to capture more of the variability in goal scoring. Count-based models such as Poisson or negative binomial regression could also better represent the distribution of goals, which are nonnegative integer counts.
 
 # Results {#sec-results}
 
@@ -176,13 +170,9 @@ lm_fit <- lm(goals ~ shots, data = nhl)
 
 ```
 
+We estimated a simple linear regression model of goals scored on shots on goal. The estimated intercept is ( $\hat{\beta}_0 = 1.414$ ), and the estimated slope is ( $\hat{\beta}_1 = 0.056$ ), meaning that, on average, each additional shot on goal is associated with about 0.056 more goals scored. This implies that a team taking ten additional shots in a game would be expected to score roughly half a goal more, holding other factors constant. The model explains about ( $R^2 = 0.049$ ) of the variation in goals, suggesting that shot volume alone accounts for only a small part of goal scoring differences across games.
 
-The estimated intercept is $\hat{\beta}_0 =$ `r round(coef(lm_fit)[1], 3)`.  
-The estimated slope is $\hat{\beta}_1 =$ `r round(coef(lm_fit)[2], 3)`, meaning that, on average, each additional shot on goal is associated with this many more goals.  
-The model explains $R^2 =$ `r round(summary(lm_fit)$r.squared, 3)` of the variation in goals scored.
-
-
-
+We used a two-sided (t)-test to evaluate the null hypothesis ($H_0: \beta_1 = 0$) against the alternative ($H_A: \beta_1 \neq 0$). The slope estimate is positive and highly significant ((p \< 0.001)), so I rejected ($H_0$) and concluded that shots on goal are positively associated with goals scored. This result aligns with the intuitive idea that more offensive activity tends to create more scoring opportunities, but the small ($R^2$) of t value highlights that shot quantity is only one part of the story.
 
 ```{r fig-nhl-residuals}
 #| echo: false
@@ -199,36 +189,24 @@ ggplot(plot_dat, aes(x = fitted, y = resid)) +
   theme_pubr() +
   ylab("Residual (observed - fitted)") +
   xlab("Fitted values (Goals)") +
-  ggtitle("Residuals vs Fitted Values for NHL Team–Game Model")
+  ggtitle("Residuals vs Fitted Values for NHL team-game Model")
 ```
 
-I use a two-sided t-test to compare the null hypothesis $H_0\!:\beta_1 = 0$ against the alternative $H_A\!:\beta_1 \neq 0$.  
-The slope estimate is positive and highly significant (p < 0.001), so we reject $H_0$ and conclude that shots on goal are positively associated with goals scored.  
-
-For this test to be valid, the usual linear regression assumptions should hold: linearity of the relationship, independence of errors, homoscedasticity (constant variance of residuals), and approximate normality of residuals.  
-The residuals plot (@fig-nhl-residuals) shows that residuals are roughly centered around zero, though there is some heteroskedasticity (variance increases slightly with fitted values). This suggests the model captures the main trend but shot volume alone does not explain all variability in scoring.
-
+\
+To check whether the assumptions of the regression model were satisfied, I examined the residuals plot (Figure 3). The residuals were roughly centered around zero, which supports the assumption of linearity, and they showed no systematic pattern, suggesting independence of errors. However, the spread of the residuals increased slightly as fitted values grew, indicating mild heteroskedasticity. In other words, the variability of prediction errors was somewhat higher for high-scoring games than for low-scoring ones. This pattern means that while the coefficient estimates ( $\hat{\beta}_0$ ) and ( $\hat{\beta}_1$ ) remain unbiased, the standard errors may be less reliable, which can make hypothesis tests or confidence intervals less precise.\
+\
+Collectively, the model provides strong statistical evidence that teams generating more shots are more likely to score, but it also emphasizes the limitations of relying solely on shot volume as a predictor. The weak explanatory power suggests that other components such as player skill, player experience, special teams, or goaltending must also influence scoring outcomes. Future analyses could incorporate these variables to better capture the complexity of goal production in NHL games.
 
 # Discussion {#sec-discussion}
 
-This analysis shows that shots on goal are positively associated with goals scored in NHL games. The slope estimate is statistically significant, indicating that taking more shots on goal increases the expected number of goals. However, the $R^2$ value is relatively low, suggesting that shot volume explains only a modest portion of the variation in goal scoring.
+The presence of mild heteroskedasticity indicates that the model does not capture all of the variability in goal scoring. Although the coefficient estimates remain unbiased, heteroskedasticity can reduce the reliability of standard errors, which in turn makes statistical tests and confidence intervals less precise. As a result, while the positive relationship between shots on goal and goals scored is statistically significant, the exact precision of the estimates should be interpreted with caution. The residual plot supports the conclusion that residuals are roughly centered around zero, suggesting linearity, but their spread increases for games with higher fitted goal values, showing that prediction errors are larger for high-scoring games than for low-scoring ones.
 
-**Strengths.**  
-- Uses official NHL play-by-play data from an entire season.  
-- Simple linear regression makes the relationship between shots and goals easy to interpret.  
+Overall, the results support the intuitive idea that taking more shots increases the likelihood of scoring, but the relatively low ( $R^2$ ) value shows that shot volume explains only a small portion of goal variation. Other factors such as shot quality, player positioning, power-play opportunities, and goaltender performance likely play major roles in determining scoring outcomes. These findings emphasize that a simple linear model can capture the general trend but cannot fully represent the complexity of offensive performance in hockey.
 
-**Limitations.**  
-- Shot quality (location, type of shot) is not included.  
-- Does not account for special teams (power play, penalty kill) or goalie performance.  
-- Model assumptions show mild heteroskedasticity.  
+This study has several strengths. It uses official NHL play-by-play data from the entire 2021–22 season, providing a large and comprehensive dataset that represents all 32 teams. The use of a simple linear regression framework also makes the relationship between shots and goals easy to interpret and communicate to a general audience.
 
-**Future directions.**  
-- Add predictors such as expected goals (xG), power-play opportunities, and goalie save percentage.  
-- Consider count regression models (Poisson or negative binomial) that better handle goal distributions.  
-- Explore player-level and team-level differences over the season.  
+However, there are important limitations. The model does not account for shot quality, shot type, or player context, which can significantly influence scoring outcomes. It also ignores special-team situations such as power plays and penalty kills, as well as goaltender performance. In addition, the residual analysis revealed mild heteroskedasticity, indicating that the variability of prediction errors changes across games. Although this issue does not bias coefficient estimates, it can affect the precision of statistical inference.
 
-Overall, while shots on goal do predict goals scored, they are only part of the story in explaining offensive success in the NHL.
+Future research could strengthen this analysis by incorporating additional predictors, such as expected goals (xG), power-play opportunities, or goalie save percentage, to improve model fit. More advanced count-based models, such as Poisson or negative binomial regression, may also better reflect the discrete nature of goal counts. Together, these extensions would provide a more accurate and comprehensive understanding of what drives offensive success in the NHL.
 
-
-
-# References
+# References {#refs}
